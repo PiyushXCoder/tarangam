@@ -15,7 +15,7 @@ fn start() {
         match read.read_line(&mut buf) {
             Ok(_) => 
             {
-                print!("{}", buf);
+                print!("{} seconds", buf.parse::<f64>().unwrap() / 60.0);
                 buf.clear();
             },
             Err(_) => {}
