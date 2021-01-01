@@ -191,8 +191,7 @@
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <child>
-                  <object class="GtkComboBox">
-                    <property name="width-request">200</property>
+                  <object class="GtkComboBoxText">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                   </object>
@@ -223,6 +222,25 @@
                 <property name="label" translatable="yes">Stop</property>
                 <property name="use-underline">True</property>
                 <property name="icon-name">media-playback-stop</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkToolItem">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkComboBoxText">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <items>
+                      <item id="&lt;Enter ID&gt;" translatable="yes">9600</item>
+                    </items>
+                  </object>
+                </child>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -263,7 +281,7 @@
                 <property name="vexpand">True</property>
                 <property name="shadow-type">in</property>
                 <child>
-                  <object class="GtkTextView">
+                  <object class="GtkTextView" id="log_area">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="monospace">True</property>

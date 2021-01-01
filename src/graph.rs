@@ -1,5 +1,6 @@
 use gtk::prelude::*;
 use gtk::DrawingArea;
+use rand::prelude::*;
 use std::rc::Rc;
 
 pub struct Graph {
@@ -8,7 +9,21 @@ pub struct Graph {
     scale_x_end: f64,
     scale_y_start: f64,
     scale_y_end: f64,
-    points: Vec<(f64,f64)>
+    lines: Vec<Line>
+}
+
+pub struct Line {
+    points: Vec<(f64,f64)>,
+    color: (f64, f64, f64)
+}
+
+impl Line {
+    pub fn new(r: f64, g: f64, b: f64, points: Vec<(f64,f64)>) -> Self {
+        Line {
+            points,
+            color: (r,g,b)
+        }
+    }
 }
 
 impl Graph {
@@ -17,7 +32,7 @@ impl Graph {
         scale_x_end: f64,
         scale_y_start: f64,
         scale_y_end: f64,
-        points: Vec<(f64,f64)>) -> Rc<Graph> {
+        lines: Vec<Line>) -> Rc<Self> {
 
         let graph = Rc::new(Graph {
             area,
@@ -25,7 +40,7 @@ impl Graph {
             scale_x_end,
             scale_y_start,
             scale_y_end,
-            points
+            lines
         });
 
         let graph_tmp = Rc::clone(&graph);
@@ -76,12 +91,15 @@ impl Graph {
 
         ctx.set_line_width(2.0);
         ctx.set_line_cap(cairo::LineCap::Round);
-        for p in graph.points.iter().skip(1).enumerate() {
-            let xp = graph.points[p.0];
-            ctx.move_to(((cell_size as f64)*(xp.0 - graph.scale_x_start))/h_scale + 40.0, height - ((cell_size as f64)*(xp.1 - graph.scale_y_start))/v_scale - 20.0);
-            ctx.line_to(((cell_size as f64)*(p.1.0 - graph.scale_x_start))/h_scale + 40.0, height - ((cell_size as f64)*(p.1.1 - graph.scale_y_start))/v_scale - 20.0);
+        for line in graph.lines.iter() {
+            ctx.set_source_rgb(line.color.0, line.color.1, line.color.2);
+            for p in line.points.iter().skip(1).enumerate() { 
+                let xp = line.points[p.0];
+                ctx.move_to(((cell_size as f64)*(xp.0 - graph.scale_x_start))/h_scale + 40.0, height - ((cell_size as f64)*(xp.1 - graph.scale_y_start))/v_scale - 20.0);
+                ctx.line_to(((cell_size as f64)*(p.1.0 - graph.scale_x_start))/h_scale + 40.0, height - ((cell_size as f64)*(p.1.1 - graph.scale_y_start))/v_scale - 20.0);
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
     }
 
     fn draw_boxes(ctx: &cairo::Context, area_width: f64, area_height: f64, src_x: f64, src_y: f64, cell_size: f64, color: f64) {

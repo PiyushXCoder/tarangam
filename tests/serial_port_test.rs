@@ -1,13 +1,14 @@
 use std::io::prelude::*;
 use std::io::BufReader;
+use std::time::Duration;
 
 #[test]
 fn start() {
     let ports = serialport::available_ports();
     println!("{:?}",ports);
 
-    let p = serialport::open("/dev/ttyUSB0")
-    .unwrap();
+    let p = serialport::new("/dev/ttyUSB0", 9600).timeout(Duration::from_millis(10))
+    .open().expect("Failed to open port");
 
     let mut read = BufReader::new(p);
     let mut buf = String::new();
@@ -15,7 +16,7 @@ fn start() {
         match read.read_line(&mut buf) {
             Ok(_) => 
             {
-                print!("{} seconds", buf.parse::<f64>().unwrap() / 60.0);
+                print!("{}", buf);
                 buf.clear();
             },
             Err(_) => {}
