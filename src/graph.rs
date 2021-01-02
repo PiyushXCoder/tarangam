@@ -1,6 +1,6 @@
 use gtk::prelude::*;
 use gtk::DrawingArea;
-use rand::prelude::*;
+
 use std::rc::Rc;
 
 pub struct Graph {
