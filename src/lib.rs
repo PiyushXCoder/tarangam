@@ -39,14 +39,16 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     let win = builder.get_object::<gtk::ApplicationWindow>("win").expect("Resource file missing!");
     win.set_application(Some(app));
     let bar = builder.get_object::<gtk::Statusbar>("status_bar").expect("Resource file missing!");
+    let log_area = builder.get_object::<gtk::TextView>("log_area").expect("Resource file missing!");
 
     let _ = Graph::new(
         builder.get_object::<gtk::DrawingArea>("draw_area").expect("Resource file missing!"),
-        0.0, 30.0,
-        0.0, 50.0,
+        0.0, 100.0,
+        0.0, 100.0,
         vec![
-            // Line::new(1.0,1.0,1.0,vec![(10.0,10.0),(20.0,20.0)]),
-            // Line::new(1.0,0.0,1.0,vec![(15.0,15.0),(50.0,25.0)])
+            Line::new(1.0,1.0,1.0,vec![(10.0,10.0),(20.0,20.0)]),
+            Line::new(1.0,0.0,1.0,vec![(15.0,15.0),(50.0,25.0)]),
+            Line::new(1.0,0.0,0.0,vec![(50.0,10.0),(70.0,60.0)])
         ]
     );
 
@@ -105,25 +107,16 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         }
     });
 
-
     //jagrit_btn
-    let jagrit_btn = builder.get_object::<gtk::RadioToolButton>("jagrit_btn").expect("Resource file missing!");
+    let jagrit_btn = builder.get_object::<gtk::ToolButton>("jagrit_btn").expect("Resource file missing!");
 
     let tmp_bar =  bar.clone();
     let tmp_config = Arc::clone(&config);
-    jagrit_btn.connect_clicked(move |btn | {
-        println!("In jagrit_btn!");
+    jagrit_btn.connect_clicked(move |_ | {
         match tmp_config.lock() {
             Ok(mut config) => {
-                if btn.get_active() {
-                    tmp_bar.push(1, "Jagrit");
-                    btn.set_icon_name(Some("media-playback-pause"));
-                    config.status = Status::PARIVARTIT;
-                } else {
-                    tmp_bar.push(1, "Sayan");
-                    btn.set_icon_name(Some("media-playback-start"));
-                    config.status = Status::SAYAN;
-                }
+                tmp_bar.push(1, "Jagrit");
+                config.status = Status::PARIVARTIT;
             }, Err(_) => {
                 tmp_bar.push(1, "Failed to change port!");
             }
@@ -135,19 +128,41 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     let tmp_bar =  bar.clone();
     let tmp_config = Arc::clone(&config);
-    avrodith_btn.connect_clicked(move |btn| {
+    avrodith_btn.connect_clicked(move |_| {
         match tmp_config.lock() {
             Ok(mut config) => {
                 tmp_bar.push(1, "Avrodhit");
-                println!("Before");
-                jagrit_btn.set_active(false);
-                println!("After!");
-                jagrit_btn.set_icon_name(Some("media-playback-start"));
                 config.status = Status::AVRODTIH;
             }, Err(_) => {
                 tmp_bar.push(1, "Failed to change port!");
             }
         }
+    });
+
+    //clear_log
+    let clear_log = builder.get_object::<gtk::ToolButton>("clear_log").expect("Resource file missing!");
+
+    let tmp_log_area = log_area.clone();
+    clear_log.connect_clicked(move |_| {
+        tmp_log_area.get_buffer().expect("Couldn't get window").set_text("");
+    });
+
+    // send_entry
+    let send_entry = builder.get_object::<gtk::Entry>("send_entry").expect("Resource file missing!");
+
+    let tmp_bar =  bar.clone();
+    let tmp_config = Arc::clone(&config);
+    send_entry.connect_activate(move |ent| {
+        send_text(&tmp_config, ent, &tmp_bar);
+    });
+
+    //send_btn
+    let send_btn = builder.get_object::<gtk::Button>("send_btn").expect("Resource file missing!");
+
+    let tmp_bar =  bar.clone();
+    let tmp_config = Arc::clone(&config);
+    send_btn.connect_activate(move |_| {
+        send_text(&tmp_config, &send_entry, &tmp_bar);
     });
 
     // serial 
@@ -162,10 +177,8 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
                 Ok(mut config) => {
                     match config.status {
                         Status::AVRODTIH => {
-                            if let Some(_) = bufread {
-                                bufread = None;
-                                println!("Avrohit!");
-                            }
+                            bufread = None;
+                            config.status = Status::SAYAN;
                         },
                         Status::JAGRIT => {
                             if let Some(read) = &mut bufread {
@@ -198,14 +211,18 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         }
     });
 
-
-    let log_area = builder.get_object::<gtk::TextView>("log_area").expect("Resource file missing!");
+    let full_log = builder.get_object::<gtk::CheckButton>("full_log").expect("Resource file missing!");
     receiver.attach(None, move |msg| {
         match msg {
             Message::Msg(text) => {
-                let buf = log_area.get_buffer()
-                .expect("Couldn't get window");
-                buf.insert(&mut buf.get_end_iter(), &text);
+                if !full_log.get_active() && text.starts_with("#") {
+
+                } else {
+                    let buf = log_area.get_buffer()
+                        .expect("Couldn't get log_area");
+                    buf.insert(&mut buf.get_end_iter(), &text);
+                    log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
+                }
             },
             Message::Status(text) => {
                 bar.push(1, &text);
@@ -215,3 +232,23 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     });
 }
 
+fn send_text(config: &Arc<Mutex<Config>>, entry: &gtk::Entry, bar: &gtk::Statusbar) {
+    match config.lock() {
+        Ok(config) => {
+            let mut p = match serialport::new(&config.port, config.bondrate).open() {
+                Ok(p) => p,
+                Err(_) => {
+                    bar.push(1, "Failed to change port!");
+                    return;
+                }
+            };
+
+            unsafe {
+                p.write_all(entry.get_text().to_string().as_bytes_mut()).unwrap();
+            }
+            entry.set_text("");
+        }, Err(_) => {
+            bar.push(1, "Failed to change port!");
+        }
+    }
+}
