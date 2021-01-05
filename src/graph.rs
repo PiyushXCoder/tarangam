@@ -2,14 +2,16 @@ use gtk::prelude::*;
 use gtk::DrawingArea;
 
 use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct Graph {
-    area: DrawingArea,
-    scale_x_start: f64,
-    scale_x_end: f64,
-    scale_y_start: f64,
-    scale_y_end: f64,
-    lines: Vec<Line>
+    pub area: DrawingArea,
+    pub scale_x_start: f64,
+    pub scale_x_size: f64,
+    pub scale_y_start: f64,
+    pub scale_y_size: f64,
+    pub draw_patch: bool,
+    pub lines: Vec<Line>
 }
 
 pub struct Line {
@@ -29,22 +31,24 @@ impl Line {
 impl Graph {
     pub fn new(area: DrawingArea, 
         scale_x_start: f64,
-        scale_x_end: f64,
+        scale_x_size: f64,
         scale_y_start: f64,
-        scale_y_end: f64,
-        lines: Vec<Line>) -> Rc<Self> {
+        scale_y_size: f64,
+        draw_patch: bool,
+        lines: Vec<Line>) -> Rc<RefCell<Self>> {
 
-        let graph = Rc::new(Graph {
+        let graph = Rc::new(RefCell::new(Graph {
             area,
             scale_x_start,
-            scale_x_end,
+            scale_x_size,
             scale_y_start,
-            scale_y_end,
+            scale_y_size,
+            draw_patch,
             lines
-        });
+        }));
 
         let graph_tmp = Rc::clone(&graph);
-        graph.area.connect_draw(move |area,ctx| {
+        graph.borrow().area.connect_draw(move |area,ctx| {
             Graph::draw(area, ctx, &graph_tmp);
             Inhibit(false)
         });
@@ -54,51 +58,69 @@ impl Graph {
 
     fn draw(area: &gtk::DrawingArea, 
         ctx:  &cairo::Context, 
-        graph: &Rc<Graph>) {
-
+        graph: &Rc<RefCell<Graph>>) {
+        
         ctx.set_source_rgb(0.1, 0.5, 0.5);
         ctx.paint();
 
         let width = area.get_allocated_width() as f64;
         let height = area.get_allocated_height() as f64;
         
+        graph.borrow_mut().adjust_scale_automatic_y();
+        graph.borrow_mut().adjust_scale_automatic_x();
+
         Graph::draw_boxes(ctx, width, height, 40.0, 20.0, 5.0, 0.3);
         Graph::draw_boxes(ctx, width, height, 40.0, 20.0, 50.0, 0.1);
-
+        
         let cell_size = 50.0;
 
         let v_bars = math::round::ceil(width/cell_size, 0) as i32;
         let h_bars= math::round::ceil(height/cell_size, 0) as i32;
 
-        let h_scale = (graph.scale_x_end - graph.scale_x_start)/(v_bars - 1) as f64; // ms
+        let h_scale = (graph.borrow().scale_x_size)/(v_bars - 1) as f64; // ms
+        let v_scale = (graph.borrow().scale_y_size)/(h_bars - 1) as f64; // ms
+        
+        ctx.set_line_width(2.0);
+        ctx.set_line_cap(cairo::LineCap::Round);
+        let draw_patch = graph.borrow().draw_patch;
+        for line in graph.borrow().lines.iter() {
+            for p in line.points.iter().enumerate() { 
+                let xp = if p.0 < line.points.len() - 1  {
+                    line.points[p.0 + 1] 
+                } else {
+                    line.points[p.0] 
+                };
+                ctx.set_source_rgb(line.color.0, line.color.1, line.color.2);
+                ctx.move_to(((cell_size as f64)*(xp.0 - graph.borrow().scale_x_start))/h_scale + 40.0, height - ((cell_size as f64)*(xp.1 - graph.borrow().scale_y_start))/v_scale - 20.0);
+                ctx.line_to(((cell_size as f64)*(p.1.0 - graph.borrow().scale_x_start))/h_scale + 40.0, height - ((cell_size as f64)*(p.1.1 - graph.borrow().scale_y_start))/v_scale - 20.0);
+                ctx.stroke();
+
+                if draw_patch {
+                    ctx.set_source_rgb(0.0, 0.0, 1.0);
+                    ctx.arc(((cell_size as f64)*(p.1.0 - graph.borrow().scale_x_start))/h_scale + 40.0, height - ((cell_size as f64)*(p.1.1 - graph.borrow().scale_y_start))/v_scale - 20.0, 5.0, 0.0, std::f64::consts::PI * 2.0);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        ctx.set_source_rgb(0.1, 0.4, 0.4);
+        ctx.rectangle(0.0, 0.0, 40.0, height);
+        ctx.rectangle(0.0, height - 20.0, width, 20.0);
+        ctx.fill();
 
         ctx.set_source_rgb(1.0, 1.0, 1.0);
         for x in 0..v_bars {
-            let text = math::round::floor(x as f64 * h_scale + graph.scale_x_start, 1).to_string();
+            let text = math::round::floor(x as f64 * h_scale + graph.borrow().scale_x_start, 1).to_string();
             let f = ctx.text_extents(&text);
             ctx.move_to(40.0 + x as f64 * cell_size - f.width, height - 10.0);
             ctx.show_text(&text);
         }
 
-        let v_scale = (graph.scale_y_end - graph.scale_y_start)/(h_bars - 1) as f64; // ms
-
         for y in (0..h_bars).rev() {
-            let text = math::round::floor(y as f64 * v_scale + graph.scale_y_start, 1).to_string();
+            let text = math::round::floor(y as f64 * v_scale + graph.borrow().scale_y_start, 1).to_string();
             let f = ctx.text_extents(&text);
             ctx.move_to(40.0 - f.width, height - y as f64 * cell_size - f.height - 15.0);
             ctx.show_text(&text);
-        }
-
-        ctx.set_line_width(2.0);
-        ctx.set_line_cap(cairo::LineCap::Round);
-        for line in graph.lines.iter() {
-            ctx.set_source_rgb(line.color.0, line.color.1, line.color.2);
-            for p in line.points.iter().skip(1).enumerate() { 
-                let xp = line.points[p.0];
-                ctx.move_to(((cell_size as f64)*(xp.0 - graph.scale_x_start))/h_scale + 40.0, height - ((cell_size as f64)*(xp.1 - graph.scale_y_start))/v_scale - 20.0);
-                ctx.line_to(((cell_size as f64)*(p.1.0 - graph.scale_x_start))/h_scale + 40.0, height - ((cell_size as f64)*(p.1.1 - graph.scale_y_start))/v_scale - 20.0);
-            }
-            ctx.stroke();
         }
     }
 
@@ -116,5 +138,35 @@ impl Graph {
             ctx.line_to(area_width, yi);
         }
         ctx.stroke();
+    }
+
+    pub fn adjust_scale_automatic_y(&mut self) {
+        
+        let mut mx:Option<f64> = None;
+        let mut mi:Option<f64> = None;
+        
+        for line in self.lines.iter() {
+            if let None = mx {
+                mx = Some(line.points[0].0);
+            }
+
+            if let None = mi {
+                mi = Some(line.points[0].0);
+            }
+
+            for (_,y) in line.points.iter().skip(1) {
+                mx = Some(f64::max(mx.unwrap(), *y));
+                mi = Some(f64::min(mi.unwrap(), *y));
+            }
+        }
+
+        let spread = (mx.unwrap() - mi.unwrap()).abs();
+         
+        self.scale_y_start = mi.unwrap() - spread * 0.1;
+        self.scale_y_size = spread * 1.2;
+    }
+
+    pub fn adjust_scale_automatic_x(&mut self) {
+
     }
 }

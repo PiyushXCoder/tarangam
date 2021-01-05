@@ -4,6 +4,7 @@ use gtk::prelude::*;
 use graph::{Graph, Line};
 
 use std::sync::{Arc, Mutex};
+use std::rc::Rc;
 
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -41,18 +42,70 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     let bar = builder.get_object::<gtk::Statusbar>("status_bar").expect("Resource file missing!");
     let log_area = builder.get_object::<gtk::TextView>("log_area").expect("Resource file missing!");
 
-    let _ = Graph::new(
+    let graph = Graph::new(
         builder.get_object::<gtk::DrawingArea>("draw_area").expect("Resource file missing!"),
         0.0, 100.0,
         0.0, 100.0,
+        true,
         vec![
-            Line::new(1.0,1.0,1.0,vec![(10.0,10.0),(20.0,20.0)]),
-            Line::new(1.0,0.0,1.0,vec![(15.0,15.0),(50.0,25.0)]),
-            Line::new(1.0,0.0,0.0,vec![(50.0,10.0),(70.0,60.0)])
+            Line::new(1.0,1.0,0.0,vec![(10.0,10.0),(20.0,20.0),(30.0,25.0), (40.0, 50.0),(50.0,25.0)]),
+            Line::new(1.0,0.0,0.0,vec![(50.0,10.0),(70.0,60.0)]),
+            Line::new(0.0,1.0,0.0,vec![(50.0,50.0)])
         ]
     );
 
     win.show_all();
+
+    // pankti
+    let pankti = builder.get_object::<gtk::SpinButton>("pankti").expect("Resource file missing!");
+
+    let tmp_graph = Rc::clone(&graph);
+    pankti.connect_value_changed(move |btn| {
+        tmp_graph.borrow_mut().scale_x_size = btn.get_value();
+        tmp_graph.borrow().area.queue_draw();
+    });
+
+    // stambh_1
+    let stambh_1 = builder.get_object::<gtk::Entry>("stambh_1").expect("Resource file missing!");
+
+    let tmp_bar =  bar.clone();
+    let tmp_graph = Rc::clone(&graph);
+    stambh_1.connect_changed(move |entry| {
+        let val = entry.get_text().parse::<f64>().unwrap_or(0.0);
+        let purana_y_start = tmp_graph.borrow().scale_y_start;
+        let y_size = tmp_graph.borrow().scale_y_size;
+        tmp_graph.borrow_mut().scale_y_start = val;
+        tmp_graph.borrow_mut().scale_y_size = y_size + (purana_y_start - val);
+        tmp_graph.borrow().area.queue_draw();
+    });
+
+    // stambh_2
+    let stambh_2 = builder.get_object::<gtk::Entry>("stambh_2").expect("Resource file missing!");
+
+    let tmp_graph = Rc::clone(&graph);
+    stambh_2.connect_changed(move |entry| {
+        let val = entry.get_text().parse::<f64>().unwrap_or(0.0);
+        let y_start = tmp_graph.borrow().scale_y_start;
+        tmp_graph.borrow_mut().scale_y_size = (val - y_start).abs();
+        tmp_graph.borrow().area.queue_draw();
+    });
+
+    // nimna_stambh
+    let nimna_stambh = builder.get_object::<gtk::CheckButton>("nimna_stambh").expect("Resource file missing!");
+
+    nimna_stambh.connect_clicked(move |btn| {
+        stambh_1.set_sensitive(btn.get_active());
+        stambh_2.set_sensitive(btn.get_active());
+    });
+
+    // draw_patches
+    let draw_patches = builder.get_object::<gtk::CheckButton>("draw_patches").expect("Resource file missing!");
+
+    let tmp_graph = Rc::clone(&graph);
+    draw_patches.connect_clicked(move |btn| {
+        tmp_graph.borrow_mut().draw_patch = btn.get_active();
+        tmp_graph.borrow().area.queue_draw();
+    });
 
     // Bondrate
     let bondrate = builder.get_object::<gtk::ComboBoxText>("bondrate").expect("Resource file missing!");
@@ -107,7 +160,16 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         }
     });
 
-    //jagrit_btn
+    // clear_graph
+    let clear_graph = builder.get_object::<gtk::ToolButton>("clear_graph").expect("Resource file missing!");
+
+    let tmp_graph = Rc::clone(&graph);
+    clear_graph.connect_clicked(move |_ | {
+        tmp_graph.borrow_mut().lines.clear();
+        tmp_graph.borrow().area.queue_draw();
+    });
+
+    // jagrit_btn
     let jagrit_btn = builder.get_object::<gtk::ToolButton>("jagrit_btn").expect("Resource file missing!");
 
     let tmp_bar =  bar.clone();
@@ -161,7 +223,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     let tmp_bar =  bar.clone();
     let tmp_config = Arc::clone(&config);
-    send_btn.connect_activate(move |_| {
+    send_btn.connect_clicked(move |_| {
         send_text(&tmp_config, &send_entry, &tmp_bar);
     });
 
@@ -230,23 +292,39 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         }
         glib::Continue(true)
     });
+
+
+    // let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
+    // glib::timeout_add(100, move || {
+    //     sender.send(()).unwrap();
+    //     glib::Continue(true)
+    // });
+
+    // let tmp_graph = Rc::clone(&graph);
+    // receiver.attach(None, move |_| {
+    //     tmp_graph.borrow_mut().scale_x_start += 1.0;
+    //     tmp_graph.borrow().area.queue_draw();
+    //     glib::Continue(true)
+    // });
 }
 
 fn send_text(config: &Arc<Mutex<Config>>, entry: &gtk::Entry, bar: &gtk::Statusbar) {
     match config.lock() {
         Ok(config) => {
-            let mut p = match serialport::new(&config.port, config.bondrate).open() {
-                Ok(p) => p,
-                Err(_) => {
-                    bar.push(1, "Failed to change port!");
-                    return;
+            if let Status::JAGRIT = config.status {
+                let mut p = match serialport::new(&config.port, config.bondrate).open() {
+                    Ok(p) => p,
+                    Err(_) => {
+                        bar.push(1, "Failed to change port!");
+                        return;
+                    }
+                };
+    
+                unsafe {
+                    p.write_all(entry.get_text().to_string().as_bytes_mut()).unwrap();
                 }
-            };
-
-            unsafe {
-                p.write_all(entry.get_text().to_string().as_bytes_mut()).unwrap();
+                entry.set_text("");
             }
-            entry.set_text("");
         }, Err(_) => {
             bar.push(1, "Failed to change port!");
         }
