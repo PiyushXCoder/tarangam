@@ -68,7 +68,6 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     // stambh_1
     let stambh_1 = builder.get_object::<gtk::Entry>("stambh_1").expect("Resource file missing!");
 
-    let tmp_bar =  bar.clone();
     let tmp_graph = Rc::clone(&graph);
     stambh_1.connect_changed(move |entry| {
         let val = entry.get_text().parse::<f64>().unwrap_or(0.0);
