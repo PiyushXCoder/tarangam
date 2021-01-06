@@ -47,10 +47,11 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         0.0, 100.0,
         0.0, 100.0,
         true,
+        true,
         vec![
             Line::new(1.0,1.0,0.0,vec![(10.0,10.0),(20.0,20.0),(30.0,25.0), (40.0, 50.0),(50.0,25.0)]),
-            Line::new(1.0,0.0,0.0,vec![(50.0,10.0),(70.0,60.0)]),
-            Line::new(0.0,1.0,0.0,vec![(50.0,50.0)])
+            // Line::new(1.0,0.0,0.0,vec![(50.0,10.0),(70.0,60.0)]),
+            // Line::new(0.0,1.0,0.0,vec![(50.0,50.0)])
         ]
     );
 
@@ -92,7 +93,9 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     // nimna_stambh
     let nimna_stambh = builder.get_object::<gtk::CheckButton>("nimna_stambh").expect("Resource file missing!");
 
+    let tmp_graph = Rc::clone(&graph);
     nimna_stambh.connect_clicked(move |btn| {
+        tmp_graph.borrow_mut().auto_adjust_y = !btn.get_active();
         stambh_1.set_sensitive(btn.get_active());
         stambh_2.set_sensitive(btn.get_active());
     });
@@ -294,13 +297,14 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
 
     // let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
-    // glib::timeout_add(100, move || {
+    // glib::timeout_add(300, move || {
     //     sender.send(()).unwrap();
     //     glib::Continue(true)
     // });
 
     // let tmp_graph = Rc::clone(&graph);
     // receiver.attach(None, move |_| {
+    //     // println!("{:?}", tmp_graph.borrow_mut().lines[0].points);
     //     tmp_graph.borrow_mut().scale_x_start += 1.0;
     //     tmp_graph.borrow().area.queue_draw();
     //     glib::Continue(true)
