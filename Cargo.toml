@@ -14,5 +14,4 @@ gio = "0.9.1"
 glib = "0.10.3"
 png = "0.16.8"
 cairo-rs = { version = "0.9.1", features = ["png"] }
-rand = "0.8.0"
-regex = "1.4.2"
+rand = "0.8.1"

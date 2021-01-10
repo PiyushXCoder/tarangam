@@ -1,13 +1,15 @@
 mod graph;
 
 use gtk::prelude::*;
-use graph::{Graph, Line};
 
-use std::sync::{Arc, Mutex};
+use rand::Rng;
+
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 use std::rc::Rc;
-
 use std::io::prelude::*;
 use std::io::BufReader;
+
+use graph::Graph;
 
 pub enum Status {
     JAGRIT, SAYAN, AVRODTIH, PARIVARTIT, NIKAS
@@ -48,14 +50,31 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         0.0, 100.0,
         true,
         true,
-        vec![
-            Line::new(1.0,1.0,0.0,vec![(10.0,10.0),(20.0,20.0),(30.0,25.0), (40.0, 50.0),(50.0,25.0)]),
-            // Line::new(1.0,0.0,0.0,vec![(50.0,10.0),(70.0,60.0)]),
-            // Line::new(0.0,1.0,0.0,vec![(50.0,50.0)])
-        ]
+        HashMap::new(),
+        0.0
     );
 
     win.show_all();
+
+    // exit_menu
+    let exit_menu = builder.get_object::<gtk::MenuItem>("exit_menu").expect("Resource file missing!");
+    let tmp_win = win.clone();
+    exit_menu.connect_activate(move |_|{
+        unsafe {
+            tmp_win.destroy();
+        }
+    });
+
+    // about_menu
+    let about_menu = builder.get_object::<gtk::MenuItem>("about_menu").expect("Resource file missing!");
+    let about = builder.get_object::<gtk::AboutDialog>("about").expect("Resource file missing!");
+    
+    about_menu.connect_activate(move |_|{
+        about.show_all();
+    });
+
+    // save_log
+    
 
     // pankti
     let pankti = builder.get_object::<gtk::SpinButton>("pankti").expect("Resource file missing!");
@@ -167,6 +186,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     let tmp_graph = Rc::clone(&graph);
     clear_graph.connect_clicked(move |_ | {
+        tmp_graph.borrow_mut().pankti_sankya = 0.0;
         tmp_graph.borrow_mut().lines.clear();
         tmp_graph.borrow().area.queue_draw();
     });
@@ -176,9 +196,13 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     let tmp_bar =  bar.clone();
     let tmp_config = Arc::clone(&config);
+    let tmp_graph = Rc::clone(&graph);
     jagrit_btn.connect_clicked(move |_ | {
         match tmp_config.lock() {
             Ok(mut config) => {
+                tmp_graph.borrow_mut().pankti_sankya = 0.0;
+                tmp_graph.borrow_mut().lines.clear();
+                tmp_graph.borrow().area.queue_draw();
                 tmp_bar.push(1, "Jagrit");
                 config.status = Status::PARIVARTIT;
             }, Err(_) => {
@@ -187,7 +211,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         }
     });
 
-    //jagrit_btn
+    //avrodith_btn
     let avrodith_btn = builder.get_object::<gtk::ToolButton>("avrodith_btn").expect("Resource file missing!");
 
     let tmp_bar =  bar.clone();
@@ -276,11 +300,66 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     });
 
     let full_log = builder.get_object::<gtk::CheckButton>("full_log").expect("Resource file missing!");
+    let tmp_graph = Rc::clone(&graph);
     receiver.attach(None, move |msg| {
         match msg {
             Message::Msg(text) => {
-                if !full_log.get_active() && text.starts_with("#") {
+                if text.starts_with("#") {
+                    tmp_graph.borrow_mut().pankti_sankya += 1.0;
+                    for (index, line) in text[1..].split(" ").enumerate() {
+                        let part = line.split("=");   
+                        let part = part.into_iter().collect::<Vec<&str>>();
+                        if part.len() == 1 {
+                            let num = match part[0].trim().parse::<f64>() {
+                                Ok(val) => val,
+                                Err(_) => {
+                                    continue;
+                                }
+                            };
+                            let mut gp = tmp_graph.borrow_mut();
+                            
+                            let sankhya = gp.pankti_sankya;
+                            match gp.lines.get_mut(&index.to_string()) {
+                                Some(val) => {
+                                    val.points.push((sankhya, num));
+                                } None => {
+                                    let v = vec![(sankhya, num)];
 
+                                    let mut rng = rand::thread_rng();
+                                    gp.lines.insert(index.to_string(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
+                                }
+                            }
+                            gp.area.queue_draw();
+                        } else if part.len() == 2 {
+                            let num = match part[1].trim().parse::<f64>() {
+                                Ok(val) => val,
+                                Err(_) => {
+                                    continue;
+                                }
+                            };
+                            let mut gp = tmp_graph.borrow_mut();
+                            
+                            let sankhya = gp.pankti_sankya;
+                            match gp.lines.get_mut(part[0]) {
+                                Some(val) => {
+                                    val.points.push((sankhya, num));
+                                } None => {
+                                    let v = vec![(sankhya, num)];
+
+                                    let mut rng = rand::thread_rng();
+                                    gp.lines.insert(part[0].to_owned(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
+                                }
+                            }
+                            gp.area.queue_draw();
+                        }
+                    }
+
+                    if full_log.get_active(){
+                        let buf = log_area.get_buffer()
+                            .expect("Couldn't get log_area");
+                        buf.insert(&mut buf.get_end_iter(), &text);
+                        log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
+                    }
                 } else {
                     let buf = log_area.get_buffer()
                         .expect("Couldn't get log_area");
@@ -295,7 +374,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         glib::Continue(true)
     });
 
-
+    // Time ke hisab se pankti ko aage bhadhay
     // let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
     // glib::timeout_add(300, move || {
     //     sender.send(()).unwrap();

@@ -3,6 +3,7 @@ use gtk::DrawingArea;
 
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 pub struct Graph {
     pub area: DrawingArea,
@@ -12,7 +13,8 @@ pub struct Graph {
     pub scale_y_size: f64,
     pub draw_patch: bool,
     pub auto_adjust_y: bool,
-    pub lines: Vec<Line>
+    pub lines: HashMap<String, Line>,
+    pub pankti_sankya: f64
 }
 
 pub struct Line {
@@ -37,7 +39,8 @@ impl Graph {
         scale_y_size: f64,
         draw_patch: bool,
         auto_adjust_y: bool,
-        lines: Vec<Line>) -> Rc<RefCell<Self>> {
+        lines: HashMap<String, Line>,
+        pankti_sankya: f64) -> Rc<RefCell<Self>> {
 
         let graph = Rc::new(RefCell::new(Graph {
             area,
@@ -47,7 +50,8 @@ impl Graph {
             scale_y_size,
             draw_patch,
             auto_adjust_y,
-            lines
+            lines,
+            pankti_sankya
         }));
 
         let graph_tmp = Rc::clone(&graph);
@@ -69,11 +73,11 @@ impl Graph {
         let width = area.get_allocated_width() as f64;
         let height = area.get_allocated_height() as f64;
         
-        graph.borrow_mut().trim_lines();
         if graph.borrow().auto_adjust_y {
             graph.borrow_mut().adjust_scale_automatic_y();
         }
-        // graph.borrow_mut().adjust_scale_automatic_x();
+        graph.borrow_mut().adjust_scale_automatic_x();
+        graph.borrow_mut().trim_lines();
 
         Graph::draw_boxes(ctx, width, height, 40.0, 20.0, 5.0, 0.3);
         Graph::draw_boxes(ctx, width, height, 40.0, 20.0, 50.0, 0.1);
@@ -89,7 +93,7 @@ impl Graph {
         ctx.set_line_width(2.0);
         ctx.set_line_cap(cairo::LineCap::Round);
         let draw_patch = graph.borrow().draw_patch;
-        for line in graph.borrow().lines.iter() {
+        for (_,line) in graph.borrow().lines.iter() {
             for p in line.points.iter().enumerate() { 
                 let xp = if p.0 < line.points.len() - 1  {
                     line.points[p.0 + 1] 
@@ -147,11 +151,20 @@ impl Graph {
     }
 
     pub fn adjust_scale_automatic_y(&mut self) {
-        
+        if self.lines.len() == 0 {
+            return;
+        }
+
         let mut mx:Option<f64> = None;
         let mut mi:Option<f64> = None;
         
-        for line in self.lines.iter() {
+        for (_, line) in self.lines.iter() {
+            if line.points.len() == 0 {
+                mx = Some(0.0);
+                mi = Some(0.0);
+                continue;
+            }
+
             if let None = mx {
                 mx = Some(line.points[0].1);
             }
@@ -166,15 +179,8 @@ impl Graph {
             }
         }
 
-        let mx  = match mx {
-            Some(val) => val,
-            None => 0.0
-        };
-
-        let mi  = match mi {
-            Some(val) => val,
-            None => 0.0
-        };
+        let mx  = mx.unwrap();
+        let mi  = mi.unwrap();
 
         let spread = (mx - mi).abs();
          
@@ -183,10 +189,20 @@ impl Graph {
     }
 
     pub fn adjust_scale_automatic_x(&mut self) {
+        if self.lines.len() == 0 {
+            return;
+        }
+
         let mut mx:Option<f64> = None;
         let mut mi:Option<f64> = None;
         
-        for line in self.lines.iter() {
+        for (_, line) in self.lines.iter() {
+            if line.points.len() == 0 {
+                mx = Some(0.0);
+                mi = Some(0.0);
+                continue;
+            }
+
             if let None = mx {
                 mx = Some(line.points[0].0);
             }
@@ -211,27 +227,24 @@ impl Graph {
     }
 
     pub fn trim_lines(&mut self) {
-        let mut j = 0;
-        while j < self.lines.len() {
+        for (_, line) in self.lines.iter_mut() {
             let mut i = 0;
-            while i < self.lines[j].points.len() {
-                println!("{:?}", self.lines[j].points);
-                match self.lines[j].points.get(i + 2) {
+            while i < line.points.len() {
+                match line.points.get(i + 2) {
                     Some(_) => {
-                        if self.lines[j].points[i+1].0 < self.scale_x_start {
-                            self.lines[j].points.remove(i);
+                        if line.points[i+1].0 < self.scale_x_start {
+                            line.points.remove(i);
                         }
                     },
                     None => {
-                        if self.lines[j].points[self.lines[j].points.len() - 1].0 < self.scale_x_start {
-                            self.lines.remove(j);
+                        if line.points[line.points.len() - 1].0 < self.scale_x_start {
+                            line.points.clear();
                             break;
                         }
                     }
                 }
                 i += 1;
             }
-            j += 1;
         }
     }
 }
