@@ -32,7 +32,7 @@ impl Config {
     }
 }
 
-enum Message {
+enum MessageSerialThread {
     Msg(String),
     Status(String)
 }
@@ -243,7 +243,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         }
     });
 
-    //avrodith_btn
+    // avrodith_btn
     let avrodith_btn = builder.get_object::<gtk::ToolButton>("avrodith_btn").expect("Resource file missing!");
 
     let tmp_bar =  bar.clone();
@@ -259,7 +259,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         }
     });
 
-    //clear_log
+    // clear_log
     let clear_log = builder.get_object::<gtk::ToolButton>("clear_log").expect("Resource file missing!");
 
     let tmp_log_area = log_area.clone();
@@ -276,7 +276,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         send_text(&tmp_config, ent, &tmp_bar);
     });
 
-    //send_btn
+    // send_btn
     let send_btn = builder.get_object::<gtk::Button>("send_btn").expect("Resource file missing!");
 
     let tmp_bar =  bar.clone();
@@ -285,7 +285,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         send_text(&tmp_config, &send_entry, &tmp_bar);
     });
 
-    // serial 
+    // Serial Thread
     let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
     let tmp_config = Arc::clone(&config);
@@ -297,14 +297,15 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         }
     });
 
+    // Serial Thread Reciver
     let full_log = builder.get_object::<gtk::CheckButton>("full_log").expect("Resource file missing!");
     let tmp_graph = Rc::clone(&graph);
     receiver.attach(None, move |msg| {
         match msg {
-            Message::Msg(text) => {
+            MessageSerialThread::Msg(text) => {
                 receiver_for_msg(text, &tmp_graph, &full_log, &log_area);
             },
-            Message::Status(text) => {
+            MessageSerialThread::Status(text) => {
                 bar.push(1, &text);
             }
         }
@@ -330,7 +331,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 fn serial_thread_work(
     config: &Arc<Mutex<Config>>, 
     bufread: &mut Option<BufReader<Box<dyn  serialport::SerialPort>>>, 
-    sender: &glib::Sender<Message>, 
+    sender: &glib::Sender<MessageSerialThread>, 
     buf: &mut String) {
     match config.lock() {
         Ok(mut config) => {
@@ -342,7 +343,7 @@ fn serial_thread_work(
                 Status::JAGRIT => {
                     if let Some(read) = bufread {
                         if let Ok(_) = read.read_line(buf) {
-                            sender.send(Message::Msg(buf.clone())).unwrap();
+                            sender.send(MessageSerialThread::Msg(buf.clone())).unwrap();
                             buf.clear();
                         }
                     }
@@ -363,7 +364,7 @@ fn serial_thread_work(
             }
 
         }, Err(_) => {
-            sender.send(Message::Status("Faild prepare for communication!".to_owned())).unwrap();
+            sender.send(MessageSerialThread::Status("Faild prepare for communication!".to_owned())).unwrap();
             return;
         }
     };
