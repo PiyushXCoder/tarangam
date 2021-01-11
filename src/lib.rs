@@ -6,6 +6,7 @@ use rand::Rng;
 
 use std::{collections::HashMap, sync::{Arc, Mutex}};
 use std::rc::Rc;
+use std::cell::RefCell;
 use std::io::prelude::*;
 use std::io::BufReader;
 
@@ -48,7 +49,9 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         builder.get_object::<gtk::DrawingArea>("draw_area").expect("Resource file missing!"),
         0.0, 100.0,
         0.0, 100.0,
-        true,
+        false,
+        false,
+        false,
         true,
         HashMap::new(),
         0.0
@@ -74,15 +77,21 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     });
 
     // save_log
+    // let save_log = builder.get_object::<gtk::MenuItem>("save_log").expect("Resource file missing!");
     
+    // let tmp_log_area = log_area.clone();
+    // save_log.connect_activate(move |_|{
+        
+    // });
 
     // pankti
     let pankti = builder.get_object::<gtk::SpinButton>("pankti").expect("Resource file missing!");
 
     let tmp_graph = Rc::clone(&graph);
     pankti.connect_value_changed(move |btn| {
-        tmp_graph.borrow_mut().scale_x_size = btn.get_value();
-        tmp_graph.borrow().area.queue_draw();
+        let mut tmp_graph = tmp_graph.borrow_mut();
+        tmp_graph.scale_x_size = btn.get_value();
+        tmp_graph.redraw();
     });
 
     // stambh_1
@@ -90,12 +99,13 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     let tmp_graph = Rc::clone(&graph);
     stambh_1.connect_changed(move |entry| {
+        let mut tmp_graph = tmp_graph.borrow_mut();
         let val = entry.get_text().parse::<f64>().unwrap_or(0.0);
-        let purana_y_start = tmp_graph.borrow().scale_y_start;
-        let y_size = tmp_graph.borrow().scale_y_size;
-        tmp_graph.borrow_mut().scale_y_start = val;
-        tmp_graph.borrow_mut().scale_y_size = y_size + (purana_y_start - val);
-        tmp_graph.borrow().area.queue_draw();
+        let purana_y_start = tmp_graph.scale_y_start;
+        let y_size = tmp_graph.scale_y_size;
+        tmp_graph.scale_y_start = val;
+        tmp_graph.scale_y_size = y_size + (purana_y_start - val);
+        tmp_graph.redraw();
     });
 
     // stambh_2
@@ -103,10 +113,11 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     let tmp_graph = Rc::clone(&graph);
     stambh_2.connect_changed(move |entry| {
+        let mut tmp_graph = tmp_graph.borrow_mut();
         let val = entry.get_text().parse::<f64>().unwrap_or(0.0);
-        let y_start = tmp_graph.borrow().scale_y_start;
-        tmp_graph.borrow_mut().scale_y_size = (val - y_start).abs();
-        tmp_graph.borrow().area.queue_draw();
+        let y_start = tmp_graph.scale_y_start;
+        tmp_graph.scale_y_size = (val - y_start).abs();
+        tmp_graph.redraw();
     });
 
     // nimna_stambh
@@ -124,8 +135,29 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     let tmp_graph = Rc::clone(&graph);
     draw_patches.connect_clicked(move |btn| {
-        tmp_graph.borrow_mut().draw_patch = btn.get_active();
-        tmp_graph.borrow().area.queue_draw();
+        let mut tmp_graph = tmp_graph.borrow_mut();
+        tmp_graph.draw_patch = btn.get_active();
+        tmp_graph.redraw();
+    });
+
+    // draw_baarik_box
+    let draw_baarik_box = builder.get_object::<gtk::CheckButton>("draw_baarik_box").expect("Resource file missing!");
+
+    let tmp_graph = Rc::clone(&graph);
+    draw_baarik_box.connect_clicked(move |btn| {
+        let mut tmp_graph = tmp_graph.borrow_mut();
+        tmp_graph.draw_baarik_box = btn.get_active();
+        tmp_graph.redraw();
+    });
+
+    // draw_box
+    let draw_box = builder.get_object::<gtk::CheckButton>("draw_box").expect("Resource file missing!");
+
+    let tmp_graph = Rc::clone(&graph);
+    draw_box.connect_clicked(move |btn| {
+        let mut tmp_graph = tmp_graph.borrow_mut();
+        tmp_graph.draw_box = btn.get_active();
+        tmp_graph.redraw();
     });
 
     // Bondrate
@@ -188,7 +220,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     clear_graph.connect_clicked(move |_ | {
         tmp_graph.borrow_mut().pankti_sankya = 0.0;
         tmp_graph.borrow_mut().lines.clear();
-        tmp_graph.borrow().area.queue_draw();
+        tmp_graph.borrow_mut().redraw();
     });
 
     // jagrit_btn
@@ -202,7 +234,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
             Ok(mut config) => {
                 tmp_graph.borrow_mut().pankti_sankya = 0.0;
                 tmp_graph.borrow_mut().lines.clear();
-                tmp_graph.borrow().area.queue_draw();
+                tmp_graph.borrow_mut().redraw();
                 tmp_bar.push(1, "Jagrit");
                 config.status = Status::PARIVARTIT;
             }, Err(_) => {
@@ -261,41 +293,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         let mut bufread: Option<BufReader<Box<dyn  serialport::SerialPort>>> = None;
         let mut buf = String::new();
         loop {
-            match tmp_config.lock() {
-                Ok(mut config) => {
-                    match config.status {
-                        Status::AVRODTIH => {
-                            bufread = None;
-                            config.status = Status::SAYAN;
-                        },
-                        Status::JAGRIT => {
-                            if let Some(read) = &mut bufread {
-                                if let Ok(_) = read.read_line(&mut buf) {
-                                    sender.send(Message::Msg(buf.clone())).unwrap();
-                                    buf.clear();
-                                }
-                            }
-                        },
-                        Status::NIKAS => {},
-                        Status::PARIVARTIT => {
-                            let p = match serialport::new(&config.port, config.bondrate).open() {
-                                Ok(p) => p,
-                                Err(_) => {
-                                    continue;
-                                }
-                            };
-        
-                            bufread = Some(BufReader::new(p));
-                            config.status = Status::JAGRIT;
-                        },
-                        Status::SAYAN => {}
-                    }
-
-                }, Err(_) => {
-                    sender.send(Message::Status("Faild prepare for communication!".to_owned())).unwrap();
-                    return;
-                }
-            };
+            serial_thread_work(&tmp_config, &mut bufread, &sender, &mut buf);
         }
     });
 
@@ -304,68 +302,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     receiver.attach(None, move |msg| {
         match msg {
             Message::Msg(text) => {
-                if text.starts_with("#") {
-                    tmp_graph.borrow_mut().pankti_sankya += 1.0;
-                    for (index, line) in text[1..].split(" ").enumerate() {
-                        let part = line.split("=");   
-                        let part = part.into_iter().collect::<Vec<&str>>();
-                        if part.len() == 1 {
-                            let num = match part[0].trim().parse::<f64>() {
-                                Ok(val) => val,
-                                Err(_) => {
-                                    continue;
-                                }
-                            };
-                            let mut gp = tmp_graph.borrow_mut();
-                            
-                            let sankhya = gp.pankti_sankya;
-                            match gp.lines.get_mut(&index.to_string()) {
-                                Some(val) => {
-                                    val.points.push((sankhya, num));
-                                } None => {
-                                    let v = vec![(sankhya, num)];
-
-                                    let mut rng = rand::thread_rng();
-                                    gp.lines.insert(index.to_string(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
-                                }
-                            }
-                            gp.area.queue_draw();
-                        } else if part.len() == 2 {
-                            let num = match part[1].trim().parse::<f64>() {
-                                Ok(val) => val,
-                                Err(_) => {
-                                    continue;
-                                }
-                            };
-                            let mut gp = tmp_graph.borrow_mut();
-                            
-                            let sankhya = gp.pankti_sankya;
-                            match gp.lines.get_mut(part[0]) {
-                                Some(val) => {
-                                    val.points.push((sankhya, num));
-                                } None => {
-                                    let v = vec![(sankhya, num)];
-
-                                    let mut rng = rand::thread_rng();
-                                    gp.lines.insert(part[0].to_owned(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
-                                }
-                            }
-                            gp.area.queue_draw();
-                        }
-                    }
-
-                    if full_log.get_active(){
-                        let buf = log_area.get_buffer()
-                            .expect("Couldn't get log_area");
-                        buf.insert(&mut buf.get_end_iter(), &text);
-                        log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
-                    }
-                } else {
-                    let buf = log_area.get_buffer()
-                        .expect("Couldn't get log_area");
-                    buf.insert(&mut buf.get_end_iter(), &text);
-                    log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
-                }
+                receiver_for_msg(text, &tmp_graph, &full_log, &log_area);
             },
             Message::Status(text) => {
                 bar.push(1, &text);
@@ -385,9 +322,118 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     // receiver.attach(None, move |_| {
     //     // println!("{:?}", tmp_graph.borrow_mut().lines[0].points);
     //     tmp_graph.borrow_mut().scale_x_start += 1.0;
-    //     tmp_graph.borrow().area.queue_draw();
+    //     tmp_graph.borrow_mut().redraw();
     //     glib::Continue(true)
     // });
+}
+
+fn serial_thread_work(
+    config: &Arc<Mutex<Config>>, 
+    bufread: &mut Option<BufReader<Box<dyn  serialport::SerialPort>>>, 
+    sender: &glib::Sender<Message>, 
+    buf: &mut String) {
+    match config.lock() {
+        Ok(mut config) => {
+            match config.status {
+                Status::AVRODTIH => {
+                    *bufread = None;
+                    config.status = Status::SAYAN;
+                },
+                Status::JAGRIT => {
+                    if let Some(read) = bufread {
+                        if let Ok(_) = read.read_line(buf) {
+                            sender.send(Message::Msg(buf.clone())).unwrap();
+                            buf.clear();
+                        }
+                    }
+                },
+                Status::NIKAS => {},
+                Status::PARIVARTIT => {
+                    let p = match serialport::new(&config.port, config.bondrate).open() {
+                        Ok(p) => p,
+                        Err(_) => {
+                            return;
+                        }
+                    };
+
+                    *bufread = Some(BufReader::new(p));
+                    config.status = Status::JAGRIT;
+                },
+                Status::SAYAN => {}
+            }
+
+        }, Err(_) => {
+            sender.send(Message::Status("Faild prepare for communication!".to_owned())).unwrap();
+            return;
+        }
+    };
+}
+
+fn receiver_for_msg(text: String, graph: &Rc<RefCell<Graph>>, full_log: &gtk::CheckButton, log_area: &gtk::TextView) {
+    if text.starts_with("#") {
+        graph.borrow_mut().pankti_sankya += 1.0;
+        for (index, line) in text[1..].split(" ").enumerate() {
+            let part = line.split("=");   
+            let part = part.into_iter().collect::<Vec<&str>>();
+            if part.len() == 1 {
+                let num = match part[0].trim().parse::<f64>() {
+                    Ok(val) => val,
+                    Err(_) => {
+                        continue;
+                    }
+                };
+                let mut gp = graph.borrow_mut();
+                
+                let sankhya = gp.pankti_sankya;
+                match gp.lines.get_mut(&index.to_string()) {
+                    Some(val) => {
+                        val.points.push((sankhya, num));
+                    } None => {
+                        let v = vec![(sankhya, num)];
+
+                        let mut rng = rand::thread_rng();
+                        gp.lines.insert(index.to_string(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
+                    }
+                }
+                gp.redraw();
+            } else if part.len() == 2 {
+                let num = match part[1].trim().parse::<f64>() {
+                    Ok(val) => val,
+                    Err(_) => {
+                        continue;
+                    }
+                };
+                let mut gp = graph.borrow_mut();
+                
+                let sankhya = gp.pankti_sankya;
+                match gp.lines.get_mut(part[0]) {
+                    Some(val) => {
+                        val.points.push((sankhya, num));
+                    } None => {
+                        let v = vec![(sankhya, num)];
+
+                        let mut rng = rand::thread_rng();
+                        gp.lines.insert(part[0].to_owned(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
+                    }
+                }
+                gp.redraw();
+            }
+        }
+
+        if full_log.get_active(){
+            let buf = log_area.get_buffer()
+                .expect("Couldn't get log_area");
+            buf.insert(&mut buf.get_end_iter(), &text);
+            log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
+            log_area.queue_draw();
+        }
+    } else {
+        let buf = log_area.get_buffer()
+            .expect("Couldn't get log_area");
+        buf.insert(&mut buf.get_end_iter(), &text);
+        log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
+        log_area.queue_draw();
+    }
 }
 
 fn send_text(config: &Arc<Mutex<Config>>, entry: &gtk::Entry, bar: &gtk::Statusbar) {
