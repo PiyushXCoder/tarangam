@@ -12,8 +12,9 @@ use std::io::BufReader;
 
 use graph::Graph;
 
-pub enum Status {
-    JAGRIT, SAYAN, AVRODTIH, PARIVARTIT, NIKAS
+/// Status of Serial reading
+enum Status {
+    JAGRIT, SAYAN, AVRODTIH, PARIVARTIT
 }
 
 pub struct Config {
@@ -22,6 +23,7 @@ pub struct Config {
     port: String
 }
 
+//
 impl Config {
     pub fn new() -> Config {
         Config {
@@ -50,7 +52,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         0.0, 100.0,
         0.0, 100.0,
         false,
-        false,
+        true,
         false,
         true,
         HashMap::new(),
@@ -72,6 +74,10 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     let about_menu = builder.get_object::<gtk::MenuItem>("about_menu").expect("Resource file missing!");
     let about = builder.get_object::<gtk::AboutDialog>("about").expect("Resource file missing!");
     
+    about.connect_close(|a| {
+        a.hide();
+    });
+
     about_menu.connect_activate(move |_|{
         about.show_all();
     });
@@ -155,6 +161,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     let tmp_graph = Rc::clone(&graph);
     draw_box.connect_clicked(move |btn| {
+        draw_baarik_box.set_sensitive(btn.get_active());
         let mut tmp_graph = tmp_graph.borrow_mut();
         tmp_graph.draw_box = btn.get_active();
         tmp_graph.redraw();
@@ -311,21 +318,6 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         }
         glib::Continue(true)
     });
-
-    // Time ke hisab se pankti ko aage bhadhay
-    // let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
-    // glib::timeout_add(300, move || {
-    //     sender.send(()).unwrap();
-    //     glib::Continue(true)
-    // });
-
-    // let tmp_graph = Rc::clone(&graph);
-    // receiver.attach(None, move |_| {
-    //     // println!("{:?}", tmp_graph.borrow_mut().lines[0].points);
-    //     tmp_graph.borrow_mut().scale_x_start += 1.0;
-    //     tmp_graph.borrow_mut().redraw();
-    //     glib::Continue(true)
-    // });
 }
 
 fn serial_thread_work(
@@ -333,6 +325,7 @@ fn serial_thread_work(
     bufread: &mut Option<BufReader<Box<dyn  serialport::SerialPort>>>, 
     sender: &glib::Sender<MessageSerialThread>, 
     buf: &mut String) {
+    let mut do_sleep = false;
     match config.lock() {
         Ok(mut config) => {
             match config.status {
@@ -348,7 +341,6 @@ fn serial_thread_work(
                         }
                     }
                 },
-                Status::NIKAS => {},
                 Status::PARIVARTIT => {
                     let p = match serialport::new(&config.port, config.bondrate).open() {
                         Ok(p) => p,
@@ -360,80 +352,92 @@ fn serial_thread_work(
                     *bufread = Some(BufReader::new(p));
                     config.status = Status::JAGRIT;
                 },
-                Status::SAYAN => {}
+                Status::SAYAN => {
+                    do_sleep = true;
+                }
             }
-
         }, Err(_) => {
             sender.send(MessageSerialThread::Status("Faild prepare for communication!".to_owned())).unwrap();
             return;
         }
     };
+    
+    // Hack for smooth performance
+    if do_sleep {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    } else {
+        std::thread::sleep(std::time::Duration::from_nanos(1));
+    }
 }
 
 fn receiver_for_msg(text: String, graph: &Rc<RefCell<Graph>>, full_log: &gtk::CheckButton, log_area: &gtk::TextView) {
-    if text.starts_with("#") {
-        graph.borrow_mut().pankti_sankya += 1.0;
-        for (index, line) in text[1..].split(" ").enumerate() {
-            let part = line.split("=");   
-            let part = part.into_iter().collect::<Vec<&str>>();
-            if part.len() == 1 {
-                let num = match part[0].trim().parse::<f64>() {
-                    Ok(val) => val,
-                    Err(_) => {
-                        continue;
+    for text in text.lines() {
+        if text.len() == 0 {
+            return;
+        } else if text.starts_with("#") {
+            graph.borrow_mut().pankti_sankya += 1.0;
+            for (index, line) in text[1..].split(" ").enumerate() {
+                let part = line.split("=");   
+                let part = part.into_iter().collect::<Vec<&str>>();
+                if part.len() == 1 {
+                    let num = match part[0].trim().parse::<f64>() {
+                        Ok(val) => val,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+                    let mut gp = graph.borrow_mut();
+                    
+                    let sankhya = gp.pankti_sankya;
+                    match gp.lines.get_mut(&index.to_string()) {
+                        Some(val) => {
+                            val.points.push((sankhya, num));
+                        } None => {
+                            let v = vec![(sankhya, num)];
+    
+                            let mut rng = rand::thread_rng();
+                            gp.lines.insert(index.to_string(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
+                        }
                     }
-                };
-                let mut gp = graph.borrow_mut();
-                
-                let sankhya = gp.pankti_sankya;
-                match gp.lines.get_mut(&index.to_string()) {
-                    Some(val) => {
-                        val.points.push((sankhya, num));
-                    } None => {
-                        let v = vec![(sankhya, num)];
-
-                        let mut rng = rand::thread_rng();
-                        gp.lines.insert(index.to_string(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
+                    gp.redraw();
+                } else if part.len() == 2 {
+                    let num = match part[1].trim().parse::<f64>() {
+                        Ok(val) => val,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
+                    let mut gp = graph.borrow_mut();
+                    
+                    let sankhya = gp.pankti_sankya;
+                    match gp.lines.get_mut(part[0]) {
+                        Some(val) => {
+                            val.points.push((sankhya, num));
+                        } None => {
+                            let v = vec![(sankhya, num)];
+    
+                            let mut rng = rand::thread_rng();
+                            gp.lines.insert(part[0].to_owned(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
+                        }
                     }
+                    gp.redraw();
                 }
-                gp.redraw();
-            } else if part.len() == 2 {
-                let num = match part[1].trim().parse::<f64>() {
-                    Ok(val) => val,
-                    Err(_) => {
-                        continue;
-                    }
-                };
-                let mut gp = graph.borrow_mut();
-                
-                let sankhya = gp.pankti_sankya;
-                match gp.lines.get_mut(part[0]) {
-                    Some(val) => {
-                        val.points.push((sankhya, num));
-                    } None => {
-                        let v = vec![(sankhya, num)];
-
-                        let mut rng = rand::thread_rng();
-                        gp.lines.insert(part[0].to_owned(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
-                    }
-                }
-                gp.redraw();
             }
-        }
-
-        if full_log.get_active(){
+    
+            if full_log.get_active(){
+                let buf = log_area.get_buffer()
+                    .expect("Couldn't get log_area");
+                buf.insert(&mut buf.get_end_iter(), &format!("{}\n",text));
+                log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
+                log_area.queue_draw();
+            }
+        } else {
             let buf = log_area.get_buffer()
                 .expect("Couldn't get log_area");
-            buf.insert(&mut buf.get_end_iter(), &text);
+            buf.insert(&mut buf.get_end_iter(), &format!("{}\n",text));
             log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
             log_area.queue_draw();
         }
-    } else {
-        let buf = log_area.get_buffer()
-            .expect("Couldn't get log_area");
-        buf.insert(&mut buf.get_end_iter(), &text);
-        log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
-        log_area.queue_draw();
     }
 }
 

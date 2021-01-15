@@ -8,7 +8,6 @@
     <property name="program-name">Tarangam (तरंगम्)</property>
     <property name="comments" translatable="yes">A simple serial plotter.
 एक सरल सीरीय्ल पलौटर।</property>
-    <property name="authors">Piyush Mishra</property>
     <property name="logo-icon-name">image-missing</property>
     <child internal-child="vbox">
       <object class="GtkBox">
@@ -278,6 +277,7 @@
                             <property name="visible">True</property>
                             <property name="can-focus">True</property>
                             <property name="receives-default">False</property>
+                            <property name="active">True</property>
                             <property name="draw-indicator">True</property>
                           </object>
                         </child>
