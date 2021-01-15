@@ -217,7 +217,7 @@ impl Graph {
         for i in (0..aa_dumm_stambh as i32 + 1).rev() {
             let text = math::round::floor(i as f64 * anupat_stambh + graph.scale_y_start, 4).to_string();
             let f = ctx.text_extents(&text);
-            ctx.move_to(stambh_scale_width - f.width + f.height / 1.732, height - i as f64 * manjusa_maap + f.width * 0.5);
+            ctx.move_to(stambh_scale_width - f.width, height - i as f64 * manjusa_maap + f.width * 0.5);
             ctx.save();
             ctx.rotate(std::f64::consts::PI / -6.0);
             ctx.show_text(&text);

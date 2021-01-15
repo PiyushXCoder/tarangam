@@ -104,7 +104,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     let stambh_1 = builder.get_object::<gtk::Entry>("stambh_1").expect("Resource file missing!");
 
     let tmp_graph = Rc::clone(&graph);
-    stambh_1.connect_changed(move |entry| {
+    stambh_1.connect_activate(move |entry| {
         let mut tmp_graph = tmp_graph.borrow_mut();
         let val = entry.get_text().parse::<f64>().unwrap_or(0.0);
         let purana_y_start = tmp_graph.scale_y_start;
@@ -118,7 +118,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     let stambh_2 = builder.get_object::<gtk::Entry>("stambh_2").expect("Resource file missing!");
 
     let tmp_graph = Rc::clone(&graph);
-    stambh_2.connect_changed(move |entry| {
+    stambh_2.connect_activate(move |entry| {
         let mut tmp_graph = tmp_graph.borrow_mut();
         let val = entry.get_text().parse::<f64>().unwrap_or(0.0);
         let y_start = tmp_graph.scale_y_start;
@@ -134,6 +134,10 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
         tmp_graph.borrow_mut().auto_adjust_y = !btn.get_active();
         stambh_1.set_sensitive(btn.get_active());
         stambh_2.set_sensitive(btn.get_active());
+        if btn.get_active() {
+            stambh_1.emit_activate();
+            stambh_2.emit_activate();
+        }
     });
 
     // draw_patches
