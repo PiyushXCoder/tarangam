@@ -36,6 +36,9 @@
         </child>
       </object>
     </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
   </object>
   <object class="GtkImage" id="document_save">
     <property name="visible">True</property>

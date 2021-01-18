@@ -72,14 +72,19 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     // about_menu
     let about_menu = builder.get_object::<gtk::MenuItem>("about_menu").expect("Resource file missing!");
-    let about = builder.get_object::<gtk::AboutDialog>("about").expect("Resource file missing!");
-    
-    about.connect_close(|a| {
+    let about_window = builder.get_object::<gtk::AboutDialog>("about_window").expect("Resource file missing!");
+    about_window.set_transient_for(Some(&win));
+
+    about_window.connect_delete_event(|a,_| {
         a.hide();
+        println!("Hah phirse");
+        Inhibit(true)
     });
 
+    let a_win = about_window.clone();
     about_menu.connect_activate(move |_|{
-        about.show_all();
+        a_win.show();
+        a_win.present();
     });
 
     // save_log
