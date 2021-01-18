@@ -77,7 +77,6 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     about_window.connect_delete_event(|a,_| {
         a.hide();
-        println!("Hah phirse");
         Inhibit(true)
     });
 
