@@ -892,6 +892,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tarangam"
+version = "0.1.0"
+dependencies = [
+ "cairo-rs",
+ "gio",
+ "glib",
+ "gtk",
+ "libmath",
+ "png",
+ "rand 0.8.1",
+ "serialport",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -927,20 +941,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ffc92d160b1eef40665be3a05630d003936a3bc7da7421277846c2613e92c71a"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "trangam"
-version = "0.1.0"
-dependencies = [
- "cairo-rs",
- "gio",
- "glib",
- "gtk",
- "libmath",
- "png",
- "rand 0.8.1",
- "serialport",
 ]
 
 [[package]]

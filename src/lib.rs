@@ -1,3 +1,5 @@
+/// Feel free to see through codes. Application is not written to be used as a library for other app. :)
+
 mod graph;
 
 use gtk::prelude::*;
@@ -17,13 +19,13 @@ enum Status {
     JAGRIT, SAYAN, AVRODTIH, PARIVARTIT
 }
 
+/// Configuration to read from Serial Port
 pub struct Config {
     status: Status,
     bondrate: u32,
     port: String
 }
 
-//
 impl Config {
     pub fn new() -> Config {
         Config {
@@ -34,13 +36,15 @@ impl Config {
     }
 }
 
+/// For communication between mpsc of graph and serial port
 enum MessageSerialThread {
     Msg(String),
     Status(String)
 }
 
+// Building and configuring GUI
 pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
-    let builder = gtk::Builder::from_file("ui/main_window.glade");
+    let builder = gtk::Builder::from_file("ui.glade");
 
     let win = builder.get_object::<gtk::ApplicationWindow>("win").expect("Resource file missing!");
     win.set_application(Some(app));
@@ -63,6 +67,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
 
     // exit_menu
     let exit_menu = builder.get_object::<gtk::MenuItem>("exit_menu").expect("Resource file missing!");
+
     let tmp_win = win.clone();
     exit_menu.connect_activate(move |_|{
         unsafe {
@@ -364,6 +369,7 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     });
 }
 
+// Controls the thread and read from serial port
 fn serial_thread_work(
     config: &Arc<Mutex<Config>>, 
     bufread: &mut Option<BufReader<Box<dyn  serialport::SerialPort>>>, 
@@ -414,6 +420,7 @@ fn serial_thread_work(
     }
 }
 
+// Receives MessageSerialThread from Serial Port managing thread and add points to draw on graph
 fn receiver_for_msg(text: String, graph: &Rc<RefCell<Graph>>, full_log: &gtk::CheckButton, log_area: &gtk::TextView) {
     for text in text.lines() {
         if text.len() == 0 {
