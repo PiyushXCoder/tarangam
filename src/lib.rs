@@ -1,4 +1,21 @@
-/// Feel free to see through codes. Application is not written to be used as a library for other app. :)
+/*
+    This file is part of Tarangam.
+
+    Tarangam is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Tarangam is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Tarangam.  If not, see <https://www.gnu.org/licenses/>
+*/
+
+//! Feel free to see through codes. Application is not written to be used as a library for other app. :)
 
 mod graph;
 
@@ -16,7 +33,10 @@ use graph::Graph;
 
 /// Status of Serial reading
 enum Status {
-    JAGRIT, SAYAN, AVRODTIH, PARIVARTIT
+    JAGRIT, // Mode of Active
+    SAYAN, // Mode of Sleeping
+    AVRODTIH, // Mode of being stopped
+    PARIVARTIT // Mode of being values modified
 }
 
 /// Configuration to read from Serial Port
@@ -43,7 +63,8 @@ enum MessageSerialThread {
 }
 
 // Building and configuring GUI
-pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
+pub fn build_ui(app: &gtk::Application) {
+    let config = Arc::new(Mutex::new(Config::new()));
     let builder = gtk::Builder::from_file("ui.glade");
 
     let win = builder.get_object::<gtk::ApplicationWindow>("win").expect("Resource file missing!");

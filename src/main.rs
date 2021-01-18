@@ -1,16 +1,27 @@
+/*
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 use gio::prelude::*;
 use std::env::args;
-use std::sync::{Arc, Mutex};
 
 fn main() {
     let app = gtk::Application::new(Some("sng.tarangm"), Default::default())
     .expect("Failed to initiate gtk");
 
-    let config = Arc::new(Mutex::new(tarangam::Config::new()));
-
     app.connect_activate(move |app| {
-        let config = Arc::clone(&config);
-        tarangam::build_ui(app, config);
+        tarangam::build_ui(app);
     });
 
     app.run(&args().collect::<Vec<_>>());
