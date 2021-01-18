@@ -75,8 +75,8 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     let about_window = builder.get_object::<gtk::AboutDialog>("about_window").expect("Resource file missing!");
     about_window.set_transient_for(Some(&win));
 
-    about_window.connect_delete_event(|a,_| {
-        a.hide();
+    about_window.connect_delete_event(|win,_| {
+        win.hide();
         Inhibit(true)
     });
 
@@ -87,12 +87,48 @@ pub fn build_ui(app: &gtk::Application, config: Arc::<Mutex::<Config>>) {
     });
 
     // save_log
-    // let save_log = builder.get_object::<gtk::MenuItem>("save_log").expect("Resource file missing!");
+    let save_menu = builder.get_object::<gtk::MenuItem>("save_menu").expect("Resource file missing!");
     
-    // let tmp_log_area = log_area.clone();
-    // save_log.connect_activate(move |_|{
-        
-    // });
+    let save_window = builder.get_object::<gtk::FileChooserDialog>("save_window").expect("Resource file missing!");
+    save_window.set_transient_for(Some(&win));
+    save_window.set_action(gtk::FileChooserAction::Save);
+    
+    save_window.connect_delete_event(|win,_| {
+        win.hide();
+        Inhibit(true)
+    });
+
+    save_window.add_button("_Save", gtk::ResponseType::Apply);
+    save_window.add_button("_Cancel", gtk::ResponseType::Cancel);
+
+    let tmp_log_area = log_area.clone();
+    let tmp_bar =  bar.clone();
+    save_window.connect_response(move |win, res| {
+        match res {
+            gtk::ResponseType::Cancel => win.hide(),
+            gtk::ResponseType::Apply => {
+                if let Some(path) = win.get_filename() {
+                    if let Some(buf) = tmp_log_area.get_buffer() {
+                        let text = buf.get_text(&buf.get_start_iter(), &buf.get_end_iter(), false).unwrap().to_string();
+
+                        match std::fs::write(path, text) {
+                            Ok(_) => { 
+                                win.hide();
+                            },
+                            Err(_) => {
+                                tmp_bar.push(1, "Failed to save!");
+                            }
+                        }
+                    }
+                }
+            },
+            _ => ()
+        }
+    });
+
+    save_menu.connect_activate(move |_|{
+        save_window.show();
+    });
 
     // pankti
     let pankti = builder.get_object::<gtk::SpinButton>("pankti").expect("Resource file missing!");
