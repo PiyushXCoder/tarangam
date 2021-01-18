@@ -6,12 +6,19 @@ It is a simple application to see log from serialports and plot on graph.
 1. Each line in the text should start with #
 2. you can write as foo=value or just values with space
 
-### Example
+#### Example
 
 ``` #s=1 b=2 ```
 
 ```#1 5 4```
 
+## Status of Serial port
+|State     |Meaning                      |
+|----------|-----------------------------|
+|JAGRIT    |Mode of Active               |
+|SAYAN     |Mode of Sleeping             |
+|AVRODTIH  |Mode of being stopped        |
+|PARIVARTIT|Mode of being values modified|
 
 ![3](screenshots/3.png)
 
