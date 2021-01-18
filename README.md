@@ -20,11 +20,9 @@ It is a simple application to see log from serialports and plot on graph.
 |AVRODTIH  |Mode of being stopped        |
 |PARIVARTIT|Mode of being values modified|
 
-![3](screenshots/3.png)
-
+## Interface
 ![1](screenshots/1.png)
 
-## Interface
 ### Top Most ToolBar
 1. Button with refresh icon is to reload list of ports.
 2. Select Port
@@ -52,6 +50,8 @@ It is a simple application to see log from serialports and plot on graph.
 1. Send Text
 
 ![2](screenshots/2.png)
+
+![3](screenshots/3.png)
 
 # LICENSE
 This program is free software: you can redistribute it and/or modify
