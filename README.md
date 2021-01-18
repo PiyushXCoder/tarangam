@@ -7,10 +7,10 @@ It is a simple application to see log from serialports and plot on graph.
 2. you can write as foo=value or just values with space
 
 ### Example
-| Examples|
-|---------|
-|#s=1 b=2 |
-|#1 5 45  |
+|        |
+|--------|
+|#s=1 b=2|
+|#1 5 45 |
 
 
 ![3](screenshots/3.png)
