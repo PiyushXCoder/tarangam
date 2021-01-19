@@ -29,6 +29,7 @@ use std::cell::RefCell;
 use std::io::prelude::*;
 use std::io::BufReader;
 
+
 use graph::Graph;
 
 /// Status of Serial reading
@@ -65,7 +66,7 @@ enum MessageSerialThread {
 // Building and configuring GUI
 pub fn build_ui(app: &gtk::Application) {
     let config = Arc::new(Mutex::new(Config::new()));
-    let builder = gtk::Builder::from_file("ui.glade");
+    let builder = gtk::Builder::from_file(std::env::current_exe().unwrap().parent().unwrap().join("ui.glade"));
 
     let win = builder.get_object::<gtk::ApplicationWindow>("win").expect("Resource file missing!");
     win.set_application(Some(app));
