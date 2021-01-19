@@ -100,9 +100,7 @@ pub fn build_ui(app: &gtk::Application) {
     let about_menu = builder.get_object::<gtk::MenuItem>("about_menu").expect("Resource file missing!");
     let about_window = builder.get_object::<gtk::AboutDialog>("about_window").expect("Resource file missing!");
     about_window.set_transient_for(Some(&win));
-    about_window.connect_close(|win| {
-        win.hide();
-    });
+    
     about_window.connect_delete_event(|win,_| {
         win.hide();
         Inhibit(true)
