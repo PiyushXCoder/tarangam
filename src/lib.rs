@@ -59,8 +59,14 @@ impl Config {
 
 /// For communication between mpsc of graph and serial port
 enum MessageSerialThread {
-    Msg(String),
+    Msg(String, MessageSerialThreadMsgType),
+    Points(Vec<(String, f64)>),
     Status(String)
+}
+
+enum MessageSerialThreadMsgType {
+    Point,
+    Log
 }
 
 // Building and configuring GUI
@@ -363,7 +369,13 @@ pub fn build_ui(app: &gtk::Application) {
         send_text(&tmp_config, &send_entry, &tmp_bar);
     });
 
-    // Serial Thread
+    /*
+        Thread to manage Serial Port
+
+        The program runs a thread to read and parse the output from serial port and
+        send it through mpsc (rx, tx) to a recever. Where it is added to Graph 
+        or Log is added to text area or any status is displayed in bar
+    */
     let (sender, receiver) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
 
     let tmp_config = Arc::clone(&config);
@@ -375,14 +387,17 @@ pub fn build_ui(app: &gtk::Application) {
         }
     });
 
-    // Serial Thread Reciver
+    // Reciver for MessageSerialThread from the "Thread to manage Serial Port" and works accordingly
     let full_log = builder.get_object::<gtk::CheckButton>("full_log").expect("Resource file missing!");
     let tmp_graph = Rc::clone(&graph);
     receiver.attach(None, move |msg| {
         match msg {
-            MessageSerialThread::Msg(text) => {
-                receiver_for_msg(text, &tmp_graph, &full_log, &log_area);
+            MessageSerialThread::Msg(text, msg_type) => {
+                receiver_for_msg(text, &msg_type, &full_log, &log_area);
             },
+            MessageSerialThread::Points(points) => {
+                receiver_for_points(points, &tmp_graph);
+            }
             MessageSerialThread::Status(text) => {
                 bar.push(1, &text);
             }
@@ -408,7 +423,33 @@ fn serial_thread_work(
                 Status::JAGRIT => {
                     if let Some(read) = bufread {
                         if let Ok(_) = read.read_line(buf) {
-                            sender.send(MessageSerialThread::Msg(buf.clone())).unwrap();
+                            for line in buf.lines() {
+                                if line.len() == 0 {
+                                    continue;
+                                } else if line.starts_with("#") {
+                                    let mut points: Vec<(String, f64)> = Vec::new();
+                                    for (index, line) in line[1..].split(" ").enumerate() {
+                                        let part = line.split("=");   
+                                        let part = part.into_iter().collect::<Vec<&str>>();
+                                        if part.len() == 1 {
+                                            let num = match part[0].trim().parse::<f64>() {
+                                                Ok(val) => val,
+                                                Err(_) => {
+                                                    continue;
+                                                }
+                                            };
+
+                                            points.push((index.to_string(), num));
+                                        } else if part.len() == 2 {
+                                            points.push((part[0].trim().to_owned(), part[1].parse::<f64>().unwrap()));
+                                        }
+                                    }
+                                    sender.send(MessageSerialThread::Points(points)).unwrap();
+                                    sender.send(MessageSerialThread::Msg(line.to_owned(),  MessageSerialThreadMsgType::Point)).unwrap();
+                                } else {
+                                    sender.send(MessageSerialThread::Msg(line.to_owned(), MessageSerialThreadMsgType::Log)).unwrap();
+                                }
+                            }
                             buf.clear();
                         }
                     }
@@ -442,78 +483,42 @@ fn serial_thread_work(
     }
 }
 
-// Receives MessageSerialThread from Serial Port managing thread and add points to draw on graph
-fn receiver_for_msg(text: String, graph: &Rc<RefCell<Graph>>, full_log: &gtk::CheckButton, log_area: &gtk::TextView) {
-    for text in text.lines() {
-        if text.len() == 0 {
+
+// Receives MessageSerialThread from Serial Port managing thread adds message to text area
+fn receiver_for_msg(text: String, msg_type: &MessageSerialThreadMsgType, full_log: &gtk::CheckButton, log_area: &gtk::TextView) {
+    if !full_log.get_active(){
+        if let MessageSerialThreadMsgType::Point = msg_type {
             return;
-        } else if text.starts_with("#") {
-            graph.borrow_mut().pankti_sankya += 1.0;
-            for (index, line) in text[1..].split(" ").enumerate() {
-                let part = line.split("=");   
-                let part = part.into_iter().collect::<Vec<&str>>();
-                if part.len() == 1 {
-                    let num = match part[0].trim().parse::<f64>() {
-                        Ok(val) => val,
-                        Err(_) => {
-                            continue;
-                        }
-                    };
-                    let mut gp = graph.borrow_mut();
-                    
-                    let sankhya = gp.pankti_sankya;
-                    match gp.lines.get_mut(&index.to_string()) {
-                        Some(val) => {
-                            val.points.push((sankhya, num));
-                        } None => {
-                            let v = vec![(sankhya, num)];
-    
-                            let mut rng = rand::thread_rng();
-                            gp.lines.insert(index.to_string(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
-                        }
-                    }
-                    gp.redraw();
-                } else if part.len() == 2 {
-                    let num = match part[1].trim().parse::<f64>() {
-                        Ok(val) => val,
-                        Err(_) => {
-                            continue;
-                        }
-                    };
-                    let mut gp = graph.borrow_mut();
-                    
-                    let sankhya = gp.pankti_sankya;
-                    match gp.lines.get_mut(part[0]) {
-                        Some(val) => {
-                            val.points.push((sankhya, num));
-                        } None => {
-                            let v = vec![(sankhya, num)];
-    
-                            let mut rng = rand::thread_rng();
-                            gp.lines.insert(part[0].to_owned(), graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
-                        }
-                    }
-                    gp.redraw();
-                }
-            }
-    
-            if full_log.get_active(){
-                let buf = log_area.get_buffer()
-                    .expect("Couldn't get log_area");
-                buf.insert(&mut buf.get_end_iter(), &format!("{}\n",text));
-                log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
-                log_area.queue_draw();
-            }
-        } else {
-            let buf = log_area.get_buffer()
-                .expect("Couldn't get log_area");
-            buf.insert(&mut buf.get_end_iter(), &format!("{}\n",text));
-            log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
-            log_area.queue_draw();
         }
     }
+    let buf = log_area.get_buffer()
+        .expect("Couldn't get log_area");
+    buf.insert(&mut buf.get_end_iter(), &format!("{}\n",text));
+    log_area.scroll_to_iter(&mut buf.get_end_iter(), 0.4, true, 0.0, 0.0);
+    log_area.queue_draw();
 }
 
+// Receives MessageSerialThread from Serial Port managing thread and add points to draw on graph
+fn receiver_for_points(points: Vec<(String, f64)>, graph: &Rc<RefCell<Graph>>) {
+    for (line, point) in points {
+        let mut gp = graph.borrow_mut();
+                
+        let sankhya = gp.pankti_sankya;
+        match gp.lines.get_mut(&line) {
+            Some(val) => {
+                val.points.push((sankhya, point));
+            } None => {
+                let v = vec![(sankhya, point)];
+                let mut rng = rand::thread_rng();
+                gp.lines.insert(line, graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
+            }
+        }
+        gp.redraw();
+    }
+    graph.borrow_mut().pankti_sankya += 1.0;
+}
+
+// Sends text through Serial Post to device
 fn send_text(config: &Arc<Mutex<Config>>, entry: &gtk::Entry, bar: &gtk::Statusbar) {
     match config.lock() {
         Ok(config) => {
