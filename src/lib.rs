@@ -58,21 +58,23 @@ impl Config {
 }
 
 /// For communication between mpsc of graph and serial port
+#[derive(Debug)]
 enum MessageSerialThread {
     Msg(String, MessageSerialThreadMsgType),
     Points(Vec<(String, f64)>),
     Status(String)
 }
 
+#[derive(Debug)]
 enum MessageSerialThreadMsgType {
     Point,
     Log
 }
 
 // Building and configuring GUI
-pub fn build_ui(app: &gtk::Application) {
+pub fn build_ui(app: &gtk::Application, ui_file: &str) {
     let config = Arc::new(Mutex::new(Config::new()));
-    let builder = gtk::Builder::from_file(std::env::current_exe().unwrap().parent().unwrap().join("ui.glade"));
+    let builder = gtk::Builder::from_file(ui_file);
 
     let win = builder.get_object::<gtk::ApplicationWindow>("win").expect("Resource file missing!");
     win.set_application(Some(app));
@@ -107,7 +109,7 @@ pub fn build_ui(app: &gtk::Application) {
     let about_menu = builder.get_object::<gtk::MenuItem>("about_menu").expect("Resource file missing!");
     let about_window = builder.get_object::<gtk::AboutDialog>("about_window").expect("Resource file missing!");
     about_window.set_transient_for(Some(&win));
-    
+    about_window.set_version(Some(env!("CARGO_PKG_VERSION")));
     about_window.connect_delete_event(|win,_| {
         win.hide();
         Inhibit(true)
@@ -389,6 +391,7 @@ pub fn build_ui(app: &gtk::Application) {
 
     // Reciver for MessageSerialThread from the "Thread to manage Serial Port" and works accordingly
     let full_log = builder.get_object::<gtk::CheckButton>("full_log").expect("Resource file missing!");
+    let graph_data = builder.get_object::<gtk::TextView>("graph_data").expect("Resource file missing!");
     let tmp_graph = Rc::clone(&graph);
     receiver.attach(None, move |msg| {
         match msg {
@@ -396,7 +399,7 @@ pub fn build_ui(app: &gtk::Application) {
                 receiver_for_msg(text, &msg_type, &full_log, &log_area);
             },
             MessageSerialThread::Points(points) => {
-                receiver_for_points(points, &tmp_graph);
+                receiver_for_points(points, &tmp_graph, &graph_data);
             }
             MessageSerialThread::Status(text) => {
                 bar.push(1, &text);
@@ -499,7 +502,7 @@ fn receiver_for_msg(text: String, msg_type: &MessageSerialThreadMsgType, full_lo
 }
 
 // Receives MessageSerialThread from Serial Port managing thread and add points to draw on graph
-fn receiver_for_points(points: Vec<(String, f64)>, graph: &Rc<RefCell<Graph>>) {
+fn receiver_for_points(points: Vec<(String, f64)>, graph: &Rc<RefCell<Graph>>, graph_data: &gtk::TextView) {
     for (line, point) in points {
         let mut gp = graph.borrow_mut();
                 
@@ -511,6 +514,25 @@ fn receiver_for_points(points: Vec<(String, f64)>, graph: &Rc<RefCell<Graph>>) {
                 let v = vec![(sankhya, point)];
                 let mut rng = rand::thread_rng();
                 gp.lines.insert(line, graph::Line::new(rng.gen_range(0.0..1.0), 0.0, rng.gen_range(0.0..1.0), v));
+                let buf = graph_data.get_buffer().expect("Couldn't get graph_data");
+                buf.set_text("");
+                gp.lines.iter().for_each(|(key, line)| {
+                    buf.insert(&mut buf.get_end_iter(), "##");
+                    
+                    let tag = gtk::TextTag::new(None);
+                    let rgba = gdk::RGBA {
+                        red: line.color.0,
+                        green: line.color.1,
+                        blue: line.color.2,
+                        alpha: 1.0
+                    };
+                    tag.set_property_background_rgba(Some(&rgba));
+                    tag.set_property_foreground_rgba(Some(&rgba));
+                    buf.get_tag_table().unwrap().add(&tag);
+                    buf.apply_tag(&tag, &buf.get_iter_at_offset(buf.get_end_iter().get_offset() - 2), &buf.get_end_iter());
+                    buf.insert(&mut buf.get_end_iter(), &format!(" {}, ", key));
+                });
+                graph_data.queue_draw();
             }
         }
         gp.redraw();

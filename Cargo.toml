@@ -1,6 +1,6 @@
 [package]
 name = "tarangam"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["PiyushXCoder <piyush.raj.kit@gmail.com>"]
 license = "GPL 3.0"
 edition = "2018"
@@ -12,6 +12,7 @@ keywords = ["plotter","serial","serialplotter","arduino","gtk"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 gtk = "0.9.2"
+gdk = "0.13.2"
 gio = "0.9.1"
 glib = "0.10.3"
 png = "0.16.8"
@@ -19,3 +20,4 @@ cairo-rs = { version = "0.9.1", features = ["png"] }
 rand = "0.8.1"
 libmath = "0.2.1"
 serialport = "4.0.0"
+clap = "2.33.3"

@@ -13,15 +13,19 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+mod config;
+
 use gio::prelude::*;
 use std::env::args;
 
 fn main() {
+    let conf = config::Config::generate();
+
     let app = gtk::Application::new(Some("sng.tarangm"), Default::default())
     .expect("Failed to initiate gtk");
 
     app.connect_activate(move |app| {
-        tarangam::build_ui(app);
+        tarangam::build_ui(app, &conf.ui_file);
     });
 
     app.run(&args().collect::<Vec<_>>());

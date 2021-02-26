@@ -24,6 +24,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
 /// A single line
+#[derive(Debug)]
 pub struct Line {
     pub points: Vec<(f64,f64)>,
     pub color: (f64, f64, f64)
