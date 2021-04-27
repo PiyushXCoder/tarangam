@@ -893,8 +893,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "tarangam_dwij"
-version = "0.1.0"
+name = "tarangam"
+version = "0.2.0"
 dependencies = [
  "cairo-rs",
  "gdk",

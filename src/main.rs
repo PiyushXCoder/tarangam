@@ -4,7 +4,7 @@ use gio::prelude::*;
 use std::env::args;
 use std::sync::Arc;
 
-use tarangam_dwij::util::Config;
+use tarangam::util::Config;
 
 
 #[tokio::main]
@@ -16,7 +16,7 @@ async fn main() {
 
     let tmp_conf = Arc::clone(&conf);
     app.connect_activate(move |app| {
-        tarangam_dwij::build_ui(app, &tmp_conf);
+        tarangam::build_ui(app, &tmp_conf);
     });
 
     app.run(&args().collect::<Vec<_>>());
