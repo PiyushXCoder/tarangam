@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- Generated with glade 3.38.1 -->
 <interface>
   <requires lib="gtk+" version="3.22"/>
   <object class="GtkAboutDialog" id="about_window">
@@ -15,6 +15,8 @@
     <property name="authors">Piyush Mishra(पीयूष मिश्र:)</property>
     <property name="logo">chitra.png</property>
     <property name="license-type">gpl-3-0</property>
+    <signal name="close" handler="about_window_close" swapped="no"/>
+    <signal name="delete-event" handler="about_window_delete" swapped="no"/>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="can-focus">False</property>
@@ -43,11 +45,6 @@
       </object>
     </child>
   </object>
-  <object class="GtkImage" id="document_save">
-    <property name="visible">True</property>
-    <property name="can-focus">False</property>
-    <property name="icon-name">document-save</property>
-  </object>
   <object class="GtkAdjustment" id="pankti_adjustment">
     <property name="lower">5</property>
     <property name="upper">500</property>
@@ -60,6 +57,9 @@
     <property name="icon">chitra.svg</property>
     <property name="type-hint">dialog</property>
     <property name="action">select-folder</property>
+    <signal name="close" handler="save_window_close" swapped="no"/>
+    <signal name="delete-event" handler="save_window_delete" swapped="no"/>
+    <signal name="response" handler="save_window_response" swapped="no"/>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="can-focus">False</property>
@@ -119,12 +119,11 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
-                      <object class="GtkImageMenuItem" id="save_menu">
-                        <property name="label">Save Log</property>
+                      <object class="GtkMenuItem" id="save_menu">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
-                        <property name="image">document_save</property>
-                        <property name="use-stock">False</property>
+                        <property name="label" translatable="yes">Save Log</property>
+                        <signal name="activate" handler="save_menu_activate" swapped="no"/>
                       </object>
                     </child>
                     <child>
@@ -134,12 +133,12 @@
                       </object>
                     </child>
                     <child>
-                      <object class="GtkImageMenuItem" id="exit_menu">
-                        <property name="label">gtk-quit</property>
+                      <object class="GtkMenuItem" id="exit_menu">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">Exit</property>
                         <property name="use-underline">True</property>
-                        <property name="use-stock">True</property>
+                        <signal name="activate" handler="exit_menu_activate" swapped="no"/>
                       </object>
                     </child>
                   </object>
@@ -157,12 +156,12 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <child>
-                      <object class="GtkImageMenuItem" id="about_menu">
-                        <property name="label">gtk-about</property>
+                      <object class="GtkMenuItem" id="about_menu">
                         <property name="visible">True</property>
                         <property name="can-focus">False</property>
+                        <property name="label" translatable="yes">About</property>
                         <property name="use-underline">True</property>
-                        <property name="use-stock">True</property>
+                        <signal name="activate" handler="about_menu_activate" swapped="no"/>
                       </object>
                     </child>
                   </object>
@@ -188,6 +187,7 @@
                 <property name="label" translatable="yes">refresh</property>
                 <property name="use-underline">True</property>
                 <property name="icon-name">view-refresh</property>
+                <signal name="clicked" handler="refresh_port_clicked" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -202,6 +202,7 @@
                   <object class="GtkComboBoxText" id="port">
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
+                    <signal name="changed" handler="port_changed" swapped="no"/>
                   </object>
                 </child>
               </object>
@@ -241,6 +242,7 @@
                       <item translatable="yes">460800</item>
                       <item translatable="yes">921600</item>
                     </items>
+                    <signal name="changed" handler="bondrate_changed" swapped="no"/>
                   </object>
                 </child>
               </object>
@@ -256,6 +258,7 @@
                 <property name="label" translatable="yes">Connect</property>
                 <property name="use-underline">True</property>
                 <property name="icon-name">media-playback-start</property>
+                <signal name="clicked" handler="jagrit_btn_clicked" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -269,6 +272,7 @@
                 <property name="label" translatable="yes">Stop</property>
                 <property name="use-underline">True</property>
                 <property name="icon-name">media-playback-stop</property>
+                <signal name="clicked" handler="avrodith_btn_clicked" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -302,6 +306,7 @@
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Clear</property>
                         <property name="use-underline">True</property>
+                        <signal name="clicked" handler="clear_graph_clicked" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -319,6 +324,7 @@
                             <property name="can-focus">True</property>
                             <property name="receives-default">False</property>
                             <property name="draw-indicator">True</property>
+                            <signal name="toggled" handler="draw_patches_toggled" swapped="no"/>
                           </object>
                         </child>
                       </object>
@@ -339,6 +345,7 @@
                             <property name="receives-default">False</property>
                             <property name="active">True</property>
                             <property name="draw-indicator">True</property>
+                            <signal name="toggled" handler="draw_box_toggled" swapped="no"/>
                           </object>
                         </child>
                       </object>
@@ -358,6 +365,7 @@
                             <property name="can-focus">True</property>
                             <property name="receives-default">False</property>
                             <property name="draw-indicator">True</property>
+                            <signal name="toggled" handler="draw_baarik_box_toggled" swapped="no"/>
                           </object>
                         </child>
                       </object>
@@ -406,6 +414,7 @@
                             <property name="digits">1</property>
                             <property name="numeric">True</property>
                             <property name="wrap">True</property>
+                            <signal name="value-changed" handler="pankti_value_changed" swapped="no"/>
                           </object>
                         </child>
                       </object>
@@ -475,6 +484,7 @@
                             <property name="can-focus">True</property>
                             <property name="receives-default">False</property>
                             <property name="draw-indicator">True</property>
+                            <signal name="toggled" handler="nimna_stambh_toggled" swapped="no"/>
                           </object>
                         </child>
                       </object>
@@ -513,6 +523,7 @@
                             <property name="can-focus">True</property>
                             <property name="width-chars">8</property>
                             <property name="text" translatable="yes">0</property>
+                            <signal name="changed" handler="stambh_1_changed" swapped="no"/>
                           </object>
                         </child>
                       </object>
@@ -551,6 +562,7 @@
                             <property name="can-focus">True</property>
                             <property name="width-chars">8</property>
                             <property name="text" translatable="yes">100</property>
+                            <signal name="changed" handler="stambh_2_changed" swapped="no"/>
                           </object>
                         </child>
                       </object>
@@ -587,6 +599,7 @@
                         <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Clear</property>
                         <property name="use-underline">True</property>
+                        <signal name="clicked" handler="clear_log_clicked" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -604,6 +617,7 @@
                             <property name="can-focus">True</property>
                             <property name="receives-default">False</property>
                             <property name="draw-indicator">True</property>
+                            <signal name="toggled" handler="full_log_toggled" swapped="no"/>
                           </object>
                         </child>
                       </object>
@@ -649,6 +663,7 @@
                       <object class="GtkEntry" id="send_entry">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
+                        <signal name="activate" handler="send_entry_activate" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -663,6 +678,7 @@
                         <property name="can-focus">True</property>
                         <property name="receives-default">True</property>
                         <property name="image">send_image</property>
+                        <signal name="clicked" handler="send_btn_clicked" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">False</property>
