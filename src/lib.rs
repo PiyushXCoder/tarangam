@@ -227,10 +227,17 @@ pub fn build_ui(app: &gtk::Application, config: &Arc<Config>) {
                 log_area.get_buffer().expect("Couldn't get window").set_text("");
                 None
             })),
-            "send_entry_activate" => Box::new(clone!(@weak config, @weak bar => @default-return None, move |a| {
-                let ent = a[0].get::<gtk::Entry>().unwrap().unwrap();
-                putil::send_text(&config, &ent, &bar);
-                None
+            "send_entry_key_press_event" => Box::new(clone!(@weak config, @weak bar => @default-return None, move |a| {
+                let ev = a[1].get::<gdk::Event>().unwrap().unwrap();
+                if let Some(val) = ev.get_keyval() {
+                    if let Some(val) = gdk::keys::keyval_name(val) {
+                        if val == "Return" {
+                            let ent = a[0].get::<gtk::Entry>().unwrap().unwrap();
+                            putil::send_text(&config, &ent, &bar);
+                        }
+                    }
+                }
+                Some(false.to_value())
             })),
             "send_btn_clicked" => Box::new(clone!(@weak config, @weak bar, @weak send_entry => @default-return None, move |_| {
                 putil::send_text(&config, &send_entry, &bar);

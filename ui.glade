@@ -663,7 +663,7 @@
                       <object class="GtkEntry" id="send_entry">
                         <property name="visible">True</property>
                         <property name="can-focus">True</property>
-                        <signal name="activate" handler="send_entry_activate" swapped="no"/>
+                        <signal name="key-press-event" handler="send_entry_key_press_event" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">True</property>
