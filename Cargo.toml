@@ -2,7 +2,7 @@
 name = "tarangam"
 version = "0.2.0"
 authors = ["PiyushXCoder <piyush.raj.kit@gmail.com>"]
-license = "GPL 3.0"
+license = "GPL-3.0-only"
 edition = "2018"
 documentation = "A simple serial plotter. एक सरल सीरीय्ल पलौटर।"
 readme = "README.md"
