@@ -1,6 +1,5 @@
 # Tarangam
-
-It is a simple application to see log from [serialports](https://wiki.osdev.org/Serial_Ports) and plot information on graph. You can use it with IOT boards([ardino](https://www.arduino.cc/), [esp boards](https://www.espressif.com/),...) in you DIY projects. It gives to many basic controls to control graph.
+It is a straightforward application to see the logs from [serial ports](https://wiki.osdev.org/Serial_Ports)  and plot information on graph. You can use it with IOT boards ([Arduino](https://www.arduino.cc/), [ESP boards](https://www.espressif.com/),...) in your DIY projects. It gives many basic controls to modify the graph.
 
 ## Interface
 ![1](screenshots/1.png)
