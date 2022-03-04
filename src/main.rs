@@ -12,26 +12,20 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
+#![windows_subsystem = "windows"]
 
-use gio::prelude::*;
+mod config;
 
-use std::env::args;
-use std::sync::Arc;
-
-use tarangam::util::Config;
-
+use gio::{prelude::*, ApplicationFlags};
 
 #[tokio::main]
 async fn main() {
-    let conf = Arc::new(Config::default());
+    let app = gtk::Application::new(Some("sng.tarangm"), ApplicationFlags::default());
 
-    let app = gtk::Application::new(Some("sng.tarangm"), Default::default())
-    .expect("Failed to initiate gtk");
+    let conf = config::Config::new(&app);
 
-    let tmp_conf = Arc::clone(&conf);
     app.connect_activate(move |app| {
-        tarangam::build_ui(app, &tmp_conf);
+        tarangam::build_ui(app, &conf.borrow().ui_file);
     });
-
-    app.run(&args().collect::<Vec<_>>());
+    app.run();
 }
