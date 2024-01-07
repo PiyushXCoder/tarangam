@@ -17,7 +17,6 @@
 
 //! Feel free to see through codes. Application is not written to be used as a library for other app. :)
 
-pub(crate) mod config;
 pub(crate) mod graph;
 pub(crate) mod port_util;
 pub(crate) mod util;
@@ -39,9 +38,10 @@ use port_util as putil;
 use util::Properties;
 
 // Building and propsuring GUI
-pub fn build_ui(app: &gtk::Application, ui_file: &str) {
+pub fn build_ui(app: &gtk::Application) {
     let props = Arc::new(Properties::default());
-    let builder = gtk::Builder::from_file(ui_file);
+    let ui_file = include_str!("ui.glade");
+    let builder = gtk::Builder::from_string(ui_file);
 
     let win = builder
         .object::<gtk::ApplicationWindow>("win")

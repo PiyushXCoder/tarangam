@@ -14,18 +14,14 @@
 */
 #![windows_subsystem = "windows"]
 
-mod config;
-
 use gio::{prelude::*, ApplicationFlags};
 
 #[tokio::main]
 async fn main() {
     let app = gtk::Application::new(Some("sng.tarangm"), ApplicationFlags::default());
 
-    let conf = config::Config::new(&app);
-
     app.connect_activate(move |app| {
-        tarangam::build_ui(app, &conf.borrow().ui_file);
+        tarangam::build_ui(app);
     });
     app.run();
 }
